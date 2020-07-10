@@ -17,7 +17,7 @@ from pyltp import Segmentor
 
 eval_target = [
     # ('output/save_eval_edag_doc_enc', 'edag', 'red'),
-    #('output/save_eval_xlnet_edag', 'graph', 'blue'),
+    #('output/save_eval_edag_xlnet', 'graph', 'blue'),
     ('output/save_eval', 'test', 'black')
 ]
 handles = []

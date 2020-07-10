@@ -19,6 +19,25 @@ import copy
 import pickle
 from utils import pad_sequence_right, pad_sequence_left
 
+def multilabel_categorical_crossentropy(y_true, y_pred):
+    y_true = torch.squeeze(y_true)
+    y_pred = torch.squeeze(y_pred)
+    assert y_true.shape == y_pred.shape
+    if len(y_true.shape) == 0:
+        y_true = y_true.unsqueeze(0)
+        y_pred = y_pred.squeeze(0)
+    y_pred = (1 - 2 * y_true) * y_pred
+    y_pred_neg = y_pred - y_true * 1e12
+    y_pred_pos = y_pred - (1 - y_true) * 1e12
+    #print(y_pred.shape)
+    zeros = torch.zeros_like(y_pred[..., :1], device=y_pred.device)
+    y_pred_neg = torch.cat([y_pred_neg, zeros], dim=-1)
+    y_pred_pos = torch.cat([y_pred_pos, zeros], dim=-1)
+    neg_loss = torch.logsumexp(y_pred_neg, dim=-1)
+    pos_loss = torch.logsumexp(y_pred_pos, dim=-1)
+    return neg_loss + pos_loss
+
+
 class MentionTypeEncoder(nn.Module):
     def __init__(self, hidden_size, num_ment_types, dropout=0.1):
         super(MentionTypeEncoder, self).__init__()
@@ -44,19 +63,27 @@ class MentionTypeEncoder(nn.Module):
             return out
 
 class EventTable(nn.Module):
-    def __init__(self, event_type, field_types, hidden_size):
+    def __init__(self, event_type, field_types, hidden_size, output_type='logp_logits'):
         super(EventTable, self).__init__()
 
         self.event_type = event_type
         self.field_types = field_types
         self.num_fields = len(field_types)
         self.hidden_size = hidden_size
+        self.output_type = output_type
 
-        self.event_cls = nn.Linear(hidden_size, 2)  # 0: NA, 1: trigger this event
-        self.field_cls_list = nn.ModuleList(
-            # 0: NA, 1: trigger this field
-            [nn.Linear(hidden_size, 2) for _ in range(self.num_fields)]
-        )
+        if output_type.endswith('logits'):
+            self.event_cls = nn.Linear(hidden_size, 2)  # 0: NA, 1: trigger this event
+            self.field_cls_list = nn.ModuleList(
+                # 0: NA, 1: trigger this field
+                [nn.Linear(hidden_size, 2) for _ in range(self.num_fields)]
+            )
+        elif output_type == 'score':
+            self.event_cls = nn.Linear(hidden_size, 1)  # 0: NA, 1: trigger this event
+            self.field_cls_list = nn.ModuleList(
+                # 0: NA, 1: trigger this field
+                [nn.Linear(hidden_size, 1) for _ in range(self.num_fields)]
+            )
 
         # used to aggregate sentence and span embedding
         self.event_query = nn.Parameter(torch.Tensor(1, self.hidden_size))
@@ -83,9 +110,11 @@ class EventTable(nn.Module):
             # doc_emb.size = [1, hidden_size]
             doc_emb, _ = transformer.attention(self.event_query, sent_context_emb, sent_context_emb)
             doc_pred_logits = self.event_cls(doc_emb)
-            doc_pred_logp = F.log_softmax(doc_pred_logits, dim=-1)
-
-            return doc_pred_logp
+            if self.output_type == 'logits' or self.output_type == 'score':
+                return doc_pred_logits
+            elif self.output_type == 'logp_logits':
+                doc_pred_logp = F.log_softmax(doc_pred_logits, dim=-1)
+                return doc_pred_logp
 
         if batch_span_emb is not None:
             assert field_idx is not None
@@ -93,9 +122,11 @@ class EventTable(nn.Module):
             if batch_span_emb.dim() == 1:
                 batch_span_emb = batch_span_emb.unsqueeze(0)
             span_pred_logits = self.field_cls_list[field_idx](batch_span_emb)
-            span_pred_logp = F.log_softmax(span_pred_logits, dim=-1)
-
-            return span_pred_logp
+            if self.output_type == 'logits' or self.output_type == 'score':
+                return span_pred_logits
+            elif self.output_type == 'logp_logits':
+                span_pred_logp = F.log_softmax(span_pred_logits, dim=-1)
+                return span_pred_logp
         
 class SentencePosEncoder(nn.Module):
     def __init__(self, hidden_size, max_sent_num=100, dropout=0.1):
@@ -261,10 +292,19 @@ class DocEE(nn.Module):
         if config['cut_word_task']:
             self.cw_labeler = nn.Linear(hidden_size, 2) # only 0 or 1
 
-        self.event_tables = nn.ModuleList([
-            EventTable(event_type, self.config['EVENT_FIELDS'][event_type][0], hidden_size)
-            for event_type in self.config['EVENT_TYPES']
-        ])
+        self.event_tables = []
+        for event_type in self.config['EVENT_TYPES']:
+            if config['multilabel_loss'] == 'binary':
+                event_table = EventTable(event_type, self.config['EVENT_FIELDS'][event_type][0], hidden_size)
+            elif config['multilabel_loss'] == 'multilabel_crossentropy':
+                event_table = EventTable(event_type, self.config['EVENT_FIELDS'][event_type][0], hidden_size, output_type='score')
+            self.event_tables.append(event_table)
+        self.event_tables = nn.ModuleList(self.event_tables)
+
+        # self.event_tables = nn.ModuleList([
+        #     EventTable(event_type, self.config['EVENT_FIELDS'][event_type][0], hidden_size)
+        #     for event_type in self.config['EVENT_TYPES']
+        # ])
 
         if config['use_pos_emb']:
             if config['trainable_pos_emb']:
@@ -307,10 +347,6 @@ class DocEE(nn.Module):
             self.sent_ids_reducer = AttentiveReducer(hidden_size, dropout=dropout)
             self.ids_reducer = AttentiveReducer(hidden_size, dropout=dropout)
             self.drange_reducer = AttentiveReducer(hidden_size, dropout=dropout)
-        elif config['pooling'] == 'AWA-R':
-            self.sent_ids_reducer_dict = nn.ModuleDict({'general': AttentiveReducer(hidden_size, dropout=dropout)})
-            self.ids_reducer = AttentiveReducer(hidden_size, dropout=dropout)
-            self.drange_reducer_dict = nn.ModuleDict()
 
     def init_eval_obj(self):
         self.eval_obj = {
@@ -385,18 +421,27 @@ class DocEE(nn.Module):
 
             event_type_score = []
             for event_table in self.event_tables:
-                 event_type_score.append(event_table(sent_context_emb=sent_emb)) # already log softmax
+                event_type_score.append(event_table(sent_context_emb=sent_emb)) # already log softmax
             event_type_score = torch.cat(event_type_score, dim=0)
             score_info['event_type_score'] = np.exp(event_type_score.detach().cpu().numpy()).reshape(-1)
 
             #event cls
             if train_flag:
-                score_info['event_type_target'] = ins['event_cls']
-                event_type_label = torch.tensor(ins['event_cls'], device=event_type_score.device)
-                event_cls_loss += F.nll_loss(event_type_score, event_type_label)
-                event_type_pred = ins['event_cls'] # edag training always uses gt event cls labels
+                if self.config['multilabel_loss'] == 'binary':
+                    score_info['event_type_target'] = ins['event_cls']
+                    event_type_label = torch.tensor(ins['event_cls'], device=event_type_score.device)
+                    event_cls_loss += F.nll_loss(event_type_score, event_type_label)
+                    event_type_pred = ins['event_cls'] # edag training always uses gt event cls labels
+                elif self.config['multilabel_loss'] == 'multilabel_crossentropy':
+                    score_info['event_type_target'] = ins['event_cls']
+                    event_type_label = torch.tensor(ins['event_cls'], device=event_type_score.device, dtype=torch.float)
+                    event_cls_loss += multilabel_categorical_crossentropy(event_type_label, event_type_score)
+                    event_type_pred = ins['event_cls'] # edag training always uses gt event cls labels
             else:
-                event_type_pred = torch.argmax(event_type_score, dim=-1).tolist()
+                if self.config['multilabel_loss'] == 'binary':
+                    event_type_pred = torch.argmax(event_type_score, dim=-1).tolist()
+                elif self.config['multilabel_loss'] == 'multilabel_crossentropy':
+                    event_type_pred = (event_type_score > 0).squeeze().tolist()
             
             if span_drange_list is None or len(span_drange_list) < 1:
                 doc_decode_res.append([None for _ in range(len(self.event_tables))])
@@ -496,11 +541,17 @@ class DocEE(nn.Module):
                 #pred
                 cand_output = self.field_context_encoder(cand_emb, None).squeeze(0)
                 span_output = cand_output[:num_spans]
-                span_logp = event_table(batch_span_emb=span_output, field_idx=field_idx) # already log softmax
+                span_score = event_table(batch_span_emb=span_output, field_idx=field_idx) # already log softmax
 
-                if span_logp.shape[0] > 100:
-                    span_logp = span_logp[:20]
-                span_pred = torch.argmax(span_logp, dim=-1).tolist()
+                if span_score.shape[0] > 100:
+                    span_score = span_score[:20]
+
+                if self.config['multilabel_loss'] == 'binary':
+                    span_logp = span_score
+                    span_pred = torch.argmax(span_logp, dim=-1).tolist()
+                elif self.config['multilabel_loss'] == 'multilabel_crossentropy':
+                    span_pred = (span_score > 0).squeeze().tolist()
+                
                 #update path
                 cur_span_idx_list = []
                 for cur_span_idx, pred_label in enumerate(span_pred):
@@ -591,18 +642,22 @@ class DocEE(nn.Module):
                     #train
                     cand_output = self.field_context_encoder(cand_emb, None).squeeze(0)
                     span_output = cand_output[:num_spans]
-                    span_logp = event_table(batch_span_emb=span_output, field_idx=field_idx) # already log softmax
+                    span_score = event_table(batch_span_emb=span_output, field_idx=field_idx)
 
                     span_label = [1 if span_idx in cur_span_idx_set else 0 for span_idx in range(num_spans)]
-
-                    score_target_info[prev_path] = {
-                        'logp_score': np.exp(span_logp.detach().cpu().numpy()),
-                        'target': span_label,
-                        'field_idx': field_idx,
-                        'event_idx': event_idx
-                    }
-                    span_label = torch.tensor(span_label, dtype=torch.long, device=device, requires_grad=False)
-                    field_loss += F.nll_loss(span_logp, span_label, weight=class_weight)
+                    # score_target_info[prev_path] = {
+                    #     'logp_score': np.exp(span_logp.detach().cpu().numpy()),
+                    #     'target': span_label,
+                    #     'field_idx': field_idx,
+                    #     'event_idx': event_idx
+                    # }
+                    if self.config['multilabel_loss'] == 'binary':
+                        span_logp = span_score
+                        span_label = torch.tensor(span_label, dtype=torch.long, device=device, requires_grad=False)
+                        field_loss += F.nll_loss(span_logp, span_label, weight=class_weight)
+                    elif self.config['multilabel_loss'] == 'multilabel_crossentropy':
+                        span_label = torch.tensor(span_label, dtype=torch.float, device=device, requires_grad=False)
+                        field_loss += multilabel_categorical_crossentropy(span_label, span_score)
 
                     #update_memory
                     for span_idx in cur_span_idx_set:

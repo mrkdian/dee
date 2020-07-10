@@ -701,13 +701,13 @@ default_task_config = {
     'use_token_role': True,
     'use_pos_emb': False,
     'use_doc_enc': False, # consider
-    'use_rnn_enc': None,
+    'use_rnn_enc': None, # ['LSTM', 'GRU', None]
     'rnn_bidirection': False,
 
     'num_tf_layer': 4,
     'ff_size': 1024,
     'neg_field_loss_scaling': 1.0, #prefer FN over FP
-    'pooling': 'AWA-R', # ['max', 'mean', 'AWA', 'AWA-R']
+    'pooling': 'max', # ['max', 'mean', 'AWA', 'AWA-R']
     'learning_rate': 1e-4,
 
     'EVENT_TYPES': EVENT_TYPES,
@@ -722,10 +722,13 @@ default_task_config = {
     'ltp_path': 'ltp_model',
     'cut_word_task': False,
     'validate_doc_file': 'validate_doc.pkl',
-    'test_doc_file': 'test_doc.pkl'
+    'test_doc_file': 'test_doc.pkl',
+
+    'multilabel_loss': 'multilabel_crossentropy' #['binary', 'multilabel_crossentropy']
 }
 
 if __name__ == '__main__':
+    torch.cuda.set_device(1)
     task_config = default_task_config
     for k, v in task_config.items():
         if not isinstance(v, (int, str, float)):
