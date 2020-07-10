@@ -551,6 +551,8 @@ class DocEE(nn.Module):
                     span_pred = torch.argmax(span_logp, dim=-1).tolist()
                 elif self.config['multilabel_loss'] == 'multilabel_crossentropy':
                     span_pred = (span_score > 0).squeeze().tolist()
+                    if not isinstance(span_pred, list):
+                        span_pred = [span_pred]
                 
                 #update path
                 cur_span_idx_list = []
