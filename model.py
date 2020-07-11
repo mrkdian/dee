@@ -383,6 +383,9 @@ class DocEE(nn.Module):
         #ee_method = 'GreedyDec'
 
         ner_loss, doc_ids_emb, doc_ner_pred, doc_sent_emb, doc_ner_score = self.do_ner(batch_train, train_flag, use_gold)
+        if self.config['only_ner']:
+            return ner_loss, []
+
         if ee_method == 'GreedyDec':
             decode_loss, decode_res = self.greedy_dec(doc_sent_emb, doc_ner_pred, batch_train, train_flag)
             total_loss = ner_loss + decode_loss
@@ -855,7 +858,7 @@ class DocEE(nn.Module):
                 attention_mask_by_sent_idx[sent_idx].append(ins['attention_mask'][sent_idx])
                 batch_idx_by_sent_idx[sent_idx].append(batch_idx)
 
-        self.eval_obj['ner_gt'].append(ner_label)
+            self.eval_obj['ner_gt'].append(ins['labels_list'])
         attention_mask = torch.tensor(attention_mask, device=device, dtype=torch.float)
         
         if self.config['use_bert']:
@@ -1007,7 +1010,7 @@ class DocEE(nn.Module):
                 ner_loss = -self.crf(ner_score, ner_label, mask=attention_mask, reduction='mean')
             else:
                 ner_loss = F.cross_entropy(ner_score.view(-1, len(self.config['NER_LABEL_LIST'])), ner_label.view(-1), ignore_index=-1)
-
+        
             if self.config['cut_word_task']:
                 cw_label = torch.tensor(cw_label, device=device, dtype=torch.long)
                 cw_score = self.cw_labeler(batch_emb)
@@ -1021,7 +1024,7 @@ class DocEE(nn.Module):
                 ner_pred = self.crf.decode(ner_score, mask=attention_mask.to(dtype=torch.uint8))
             else:
                 ner_pred = torch.argmax(ner_score, dim=-1).tolist()
-        self.eval_obj['ner_pred'].append(ner_pred)
+        
         doc_ids_emb = []
         doc_ner_pred = []
         doc_sent_emb = []
@@ -1032,6 +1035,8 @@ class DocEE(nn.Module):
             doc_ner_pred.append(ner_pred[doc_beg: doc_end])
             doc_sent_emb.append(pooling_emb[doc_beg: doc_end])
             doc_ner_score.append(ner_score[doc_beg: doc_end].detach().cpu().numpy())
+
+            self.eval_obj['ner_pred'].append(torch.argmax(ner_score[doc_beg: doc_end], dim=-1).tolist())
         return ner_loss, doc_ids_emb, doc_ner_pred, doc_sent_emb, doc_ner_score
 
     def generate_train_edag(self, doc_span_drange_list, batch_train):

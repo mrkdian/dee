@@ -1,5 +1,5 @@
 from event_edag_meta import EVENT_TYPES, EVENT_FIELDS, NER_LABEL2ID, NER_LABEL_LIST, EVENT_TYPE_FIELDS_PAIRS, EVENT_TYPE2ID
-from utils import strQ2B, sub_list_index, measure_event_table_filling
+from utils import strQ2B, sub_list_index, measure_event_table_filling, collate_label
 from langconv import Traditional2Simplified
 import random
 import numpy as np
@@ -96,6 +96,9 @@ class DocEETask:
             ids_length = []
             attention_mask = []
             labels_list = []
+            cut_word_labels_list = []
+            pos_tag_labels_list = []
+
             sentences = ins['sentences'][:MAX_SENT_NUM]
             ins['merge_sentences'] = sentences
             for sentence in sentences:
@@ -246,10 +249,11 @@ class DocEETask:
 
         EVAL_JSON_FILE = os.path.join(EVAL_SAVE_DIR, self.config['eval_json_file'])
         EVAL_OBJ_FILE = os.path.join(EVAL_SAVE_DIR, self.config['eval_obj_file'])
+        EVAL_NER_FILE = os.path.join(EVAL_SAVE_DIR, self.config['eval_ner_json_file'])
         TEST_FILE = self.config['save_test_file']
         MODEL_FILE = self.config['model_file']
         #VALIDATE_DOC_FILE = os.path.join(EVAL_SAVE_DIR, self.config['validate_doc_file'])
-        pickle.dump(dev, open(self.config['validate_doc_file'], mode='wb'))
+        #pickle.dump(dev, open(self.config['validate_doc_file'], mode='wb'))
 
         if self.config['accum_batch_size'] is not None:
             accum_batch_size = self.config['accum_batch_size']
@@ -304,6 +308,7 @@ class DocEETask:
             os.sys.stdout.flush()
 
             if not self.config['skip_eval']:
+                torch.cuda.empty_cache()
                 self.model.eval()
                 self.model.init_eval_obj()
                 total_decode_res = []
@@ -318,14 +323,85 @@ class DocEETask:
                         total_decode_res.extend(doc_decode_res)
                         pbar.update()
                 os.sys.stdout.flush()
-                eval_json = self.measure_dee_prediction(total_decode_res, dev)
-                print(eval_json[-1]['MicroF1'])
-                json.dump(eval_json, open(EVAL_JSON_FILE % epoch, mode='w', encoding='utf-8'), ensure_ascii=False, indent=4)
-                pickle.dump(self.model.eval_obj, open(EVAL_OBJ_FILE % epoch, mode='wb'))
+                if not self.config['only_ner']:
+                    eval_json = self.measure_dee_prediction(total_decode_res, dev)
+                    print('event extreaction f1:', eval_json[-1]['MicroF1'])
+                    json.dump(eval_json, open(EVAL_JSON_FILE % epoch, mode='w', encoding='utf-8'), ensure_ascii=False, indent=4)
+                    pickle.dump(self.model.eval_obj, open(EVAL_OBJ_FILE % epoch, mode='wb'))
 
+                    ner_res = self.measure_ner_prediction(self.model.eval_obj['ner_gt'], self.model.eval_obj['ner_pred'], dev)
+                    json.dump(ner_res, open(EVAL_NER_FILE % epoch, mode='w', encoding='utf-8'), ensure_ascii=False, indent=4)
+                    print('ner f1:', ner_res['micro_f1'])
+                else:
+                    ner_res = self.measure_ner_prediction(self.model.eval_obj['ner_gt'], self.model.eval_obj['ner_pred'], dev)
+                    json.dump(ner_res, open(EVAL_NER_FILE % epoch, mode='w', encoding='utf-8'), ensure_ascii=False, indent=4)
+                    print('ner f1:', ner_res['micro_f1'])
             #self.eval_save_test(TEST_FILE % epoch)
             self.latest_epoch += 1 # update epoch
     
+    def measure_ner_prediction(self, ner_gt, ner_pred, dev):
+        NER_LABEL2ID = self.config['NER_LABEL2ID']
+        NER_LABEL_LIST = self.config['NER_LABEL_LIST']
+        ner_res = {}
+        for label in NER_LABEL_LIST[1:]:
+            ner_res[label[2:]] = { 'tp': 0, 'fp': 0, 'fn': 0 }
+
+        for doc_ner_gt, doc_ner_pred, ins in zip(ner_gt, ner_pred, dev):
+            ids2drange_gt = collate_label(doc_ner_gt, ins['attention_mask'], ins['ids_list'])
+            ids2drange_pred = collate_label(doc_ner_pred, ins['attention_mask'], ins['ids_list'])
+            for k in ids2drange_gt.keys():
+                ids2drange_gt[k] = dict(ids2drange_gt[k])
+            for k in ids2drange_pred.keys():
+                ids2drange_pred[k] = dict(ids2drange_pred[k])
+
+            for gt_ids, dranges in ids2drange_gt.items():
+                pred_dranges = ids2drange_pred.get(gt_ids)
+                if pred_dranges is not None:
+                    for drange, label in dranges.items():
+                        pred_label = pred_dranges.get(drange)
+                        if pred_label == label:
+                            ner_res[NER_LABEL_LIST[label][2:]]['tp'] += 1
+                            pred_dranges.pop(drange)
+                        else:
+                            if pred_label is not None:
+                                ner_res[NER_LABEL_LIST[pred_label][2:]]['fp'] += 1
+                                pred_dranges.pop(drange)
+                            ner_res[NER_LABEL_LIST[label][2:]]['fn'] += 1
+                else:
+                    for drange, label in dranges.items():
+                        ner_res[NER_LABEL_LIST[label][2:]]['fn'] += 1
+            
+            for pred_ids, dranges in ids2drange_pred.items():
+                for drange, label in dranges.items():
+                    ner_res[NER_LABEL_LIST[label][2:]]['fp'] += 1
+
+        total_tp = 0
+        total_fp = 0
+        total_fn = 0
+        total_f1 = 0
+        for label in NER_LABEL_LIST[1:]:
+            label = label[2:]
+            tp, fp, fn = ner_res[label]['tp'], ner_res[label]['fp'], ner_res[label]['fn']
+            total_tp += tp
+            total_fp += fp
+            total_fn += fn
+
+            p = 0 if tp == 0 else tp / (tp + fp)
+            r = 0 if tp == 0 else tp / (tp + fn)
+            f1 = 0 if p + r == 0 else (2 * p * r) / (p + r)
+            ner_res[label]['f1'] = f1
+            ner_res[label]['precision'] = p
+            ner_res[label]['recall'] = r
+            total_f1 += f1
+
+        total_p = 0 if total_tp == 0 else total_tp / (total_tp + total_fp)
+        total_r = 0 if total_tp == 0 else total_tp / (total_tp + total_fn)
+        ner_res['micro_f1'] = 0 if total_p + total_r == 0 else (2 * total_p * total_r) / (total_p + total_r)
+        ner_res['macro_f1'] = total_f1 / (len(NER_LABEL_LIST) - 1)
+        return ner_res
+
+        
+
     def save_model_checkpoint(self, cpt_file_name, epoch):
         OUTPUT_DIR = self.config['output_dir']
         MODEL_SAVE_DIR = os.path.join(OUTPUT_DIR, self.config['model_save_dir'])
@@ -438,8 +514,6 @@ class DocEETask:
         eval_res = measure_event_table_filling(doc_decode_res, gt_decode_res, EVENT_TYPE_FIELDS_PAIRS, dict_return=True)
         return eval_res
 
-
-
 default_task_config = {
     'test_file': 'edag_data/test.json',
     'train_file': 'edag_data/sample_train.json',
@@ -453,8 +527,9 @@ default_task_config = {
     'save_test_file': 'test-%d.txt',
     'model_file': '%s-%d.cpt',
     'random_seed': 666,
+    'eval_ner_json_file': 'eval-ner-%d.json',
 
-    'epoch': 300,
+    'epoch': 50,
     'train_doc_batch_size': 2,
     'eval_doc_batch_size': 2,
     'test_doc_batch_size': 2,
@@ -470,6 +545,7 @@ default_task_config = {
     'skip_eval': False,
     'save_model': True,
     'resume_model': True,
+    'only_ner': True,
 
     'max_tokens_length': 128,
     'max_sent_num': 64,
@@ -479,8 +555,8 @@ default_task_config = {
     'text_norm': True,
     
     'use_bert': True,
-    'bert_model_name': 'hfl/rbt3',
-    'bert_dir': 'rbt3',
+    'bert_model_name': 'hfl/rbt3', # ['hfl/rbt3', 'bert-base-chinese']
+    'bert_dir': 'rbt3', # ['rbt3', 'bert_base_chinese']
     'num_bert_layer': None,
     'bert_add_cls_sep': False,
 
@@ -525,7 +601,10 @@ default_task_config = {
     'debug_data_num': None,
     'debug_data_id_test': None,
     'ltp_path': 'ltp_model',
-    'cut_word_task': False,
+    'cut_word_task': True,
+    'pos_tag_task': True,
+
+
     'validate_doc_file': 'validate_doc.pkl',
     'test_doc_file': 'test_doc.pkl',
 

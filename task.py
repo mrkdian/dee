@@ -444,7 +444,7 @@ class DocEETask:
         TEST_FILE = self.config['save_test_file']
         MODEL_FILE = self.config['model_file']
         #VALIDATE_DOC_FILE = os.path.join(EVAL_SAVE_DIR, self.config['validate_doc_file'])
-        pickle.dump(dev, open(self.config['validate_doc_file'], mode='wb'))
+        #pickle.dump(dev, open(self.config['validate_doc_file'], mode='wb'))
 
         if self.config['accum_batch_size'] is not None:
             accum_batch_size = self.config['accum_batch_size']
@@ -665,6 +665,7 @@ default_task_config = {
     'skip_eval': False,
     'save_model': True,
     'resume_model': True,
+    'only_ner': False,
 
     'max_tokens_length': 500,
     'max_sent_num': 5,
@@ -696,7 +697,7 @@ default_task_config = {
     'ner_label_count_limit': None,
     'ner_label_sentence_length': 500,
 
-    'cuda': True,
+    'cuda': False,
     'use_crf': False,
     'use_token_role': True,
     'use_pos_emb': False,
@@ -717,7 +718,7 @@ default_task_config = {
     'EVENT_TYPE2ID': EVENT_TYPE2ID,
     'EVENT_TYPE_FIELDS_PAIRS': EVENT_TYPE_FIELDS_PAIRS,
 
-    'debug_data_num': None,
+    'debug_data_num': 100,
     'debug_data_id_test': None,
     'ltp_path': 'ltp_model',
     'cut_word_task': False,

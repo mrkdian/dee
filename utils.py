@@ -1,6 +1,40 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import collections
+
+def collate_label(labels_list, attention_mask, ids_list):
+    span_token_drange_list = []
+    for sent_idx, labels in enumerate(labels_list):
+        mask = attention_mask[sent_idx]
+        ids = ids_list[sent_idx]
+        seq_len = len(labels)
+        char_s = 0
+        while char_s < seq_len:
+            if mask[char_s] == 0:
+                break
+            entity_idx = labels[char_s]
+            if entity_idx % 2 == 1:
+                char_e = char_s + 1
+                while char_e < seq_len and mask[char_e] == 1 and labels[char_e] == entity_idx + 1:
+                    char_e += 1
+
+                token_tup = tuple(ids[char_s:char_e])
+                drange = (sent_idx, char_s, char_e)
+
+                span_token_drange_list.append((token_tup, drange, entity_idx))
+
+                char_s = char_e
+            else:
+                char_s += 1
+    span_token_drange_list.sort(key=lambda x: x[-1])  # sorted by drange = (sent_idx, char_s, char_e)
+    token_tup2dranges = collections.OrderedDict()
+    for token_tup, drange, entity_idx in span_token_drange_list:
+        # print(tokenizer.decode(token_tup), NER_LABEL_LIST[entity_idx])
+        if token_tup not in token_tup2dranges:
+            token_tup2dranges[token_tup] = []
+        token_tup2dranges[token_tup].append((drange, entity_idx))
+    return token_tup2dranges
 
 def pad_sequence_left(sequences, batch_first=False, padding_value=0, padding_len='auto'):
     max_size = sequences[0].size()
