@@ -291,6 +291,9 @@ class DocEE(nn.Module):
 
         if config['cut_word_task']:
             self.cw_labeler = nn.Linear(hidden_size, 2) # only 0 or 1
+        
+        if config['pos_tag_task']:
+            self.pos_tag_labeler = nn.Linear(hidden_size, len(config['POS_TAG_LIST']))
 
         self.event_tables = []
         for event_type in self.config['EVENT_TYPES']:
@@ -832,6 +835,7 @@ class DocEE(nn.Module):
         doc_beg_list = [0]
 
         cw_label = []
+        pos_label = []
 
         input_ids_by_sent_idx = []
         attention_mask_by_sent_idx = []
@@ -842,6 +846,10 @@ class DocEE(nn.Module):
                 ner_label.extend(ins['labels_list'])
                 if self.config['cut_word_task']:
                     cw_label.extend(ins['cw_labels_list'])
+                if self.config['pos_tag_task']:
+                    pos_label.extend(ins['pos_tag_labels_list'])
+
+
             input_ids.extend(ins['ids_list'])
             attention_mask.extend(ins['attention_mask'])
             ids_length.extend(ins['ids_length'])
@@ -1016,6 +1024,11 @@ class DocEE(nn.Module):
                 cw_score = self.cw_labeler(batch_emb)
                 cw_loss = F.cross_entropy(cw_score.view(-1, 2), cw_label.view(-1), ignore_index=-1)
                 ner_loss += cw_loss
+            if self.config['pos_tag_task']:
+                pos_label = torch.tensor(pos_label, device=device, dtype=torch.long)
+                pos_score = self.pos_tag_labeler(batch_emb)
+                pos_loss = F.cross_entropy(pos_score.view(-1, pos_score.shape[-1]), pos_label.view(-1), ignore_index=-1)
+                ner_loss += pos_loss
 
         if use_gold:
             ner_pred = ner_label

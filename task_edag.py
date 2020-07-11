@@ -14,7 +14,10 @@ import os
 import pickle
 import time
 from model import DocEE
-from pyltp import Segmentor
+from pyltp import Segmentor, Postagger, Parser
+
+POS_TAG_LIST = ['n', 'v', 'wp', 'm', 'other', 'noword']
+POS_TAG2ID = { 'noword': 0, 'n': 1, 'v': 2, 'wp': 3, 'm': 4, 'other': 5 }
 
 class DocEETask:
     def __init__(self, config):
@@ -33,11 +36,17 @@ class DocEETask:
             raise Exception('Not support other basic encoder')
         self.latest_epoch = 0
 
-        if self.config['cut_word_task']:
+        if self.config['cut_word_task'] or self.config['pos_tag_task']:
             cws_model_path = os.path.join(self.config['ltp_path'], 'cws.model')
             segmentor = Segmentor()
             segmentor.load(cws_model_path)
             self.segmentor = segmentor
+        if self.config['pos_tag_task']:
+            pos_model_path = os.path.join(self.config['ltp_path'], 'pos.model')
+            postagger = Postagger()
+            postagger.load(pos_model_path)
+            self.postagger = postagger
+
 
     def load_data(self):
         train = json.load(open(self.config['train_file'], mode='r', encoding='utf-8'))
@@ -52,7 +61,7 @@ class DocEETask:
         if self.config['debug_data_num'] is not None:
             self.train = train[:self.config['debug_data_num']]
             self.test = test[:self.config['debug_data_num']]
-            #self.dev = dev[:self.config['debug_data_num']]
+            # self.dev = dev[:self.config['debug_data_num']]
         else:
             self.train = train
             self.test = test
@@ -104,6 +113,10 @@ class DocEETask:
             for sentence in sentences:
                 ids = []
                 mask = []
+                labels = []
+                cut_word_labels = []
+                pos_tag_labels = []
+
                 if TEXT_NORM:
                     sentence_norm = Traditional2Simplified(strQ2B(sentence)).lower()
                     assert len(sentence_norm) == len(sentence)
@@ -112,14 +125,54 @@ class DocEETask:
                     ids.append(self.tokenizer.convert_tokens_to_ids(char))
                 ids_length.append(len(ids))
                 mask = [1 for _ in range(ids_length[-1])]
+                labels = [0 for _ in range(ids_length[-1])]
+                #pos_tag_labels = [0 for _ in range(ids_length[-1])]
+                #cut_word_labels = [0 for _ in range(ids_length[-1])]
 
                 pad_num = MAX_TOKENS_LENGTH - ids_length[-1]
                 ids.extend([PAD_ID for _ in range(pad_num)])
                 mask.extend([0 for _ in range(pad_num)])
+                labels.extend([-1 for _ in range(pad_num)])
+                #pos_tag_labels.extend([-1 for _ in range(pad_num)])
+                #cut_word_labels.extend([-1 for _ in range(pad_num)])
 
-                labels_list.append([0 for _ in ids])
+                words = None
+                if self.config['cut_word_task']:
+                    words = list(self.segmentor.segment(sentence))
+                    #words = list(self.segmentor.segment(re.sub('\s', '#', sentence)))
+                    for word in words:
+                        cut_word_labels.append(1)
+                        for _ in word[1:]:
+                            cut_word_labels.append(0)
+                    assert len(cut_word_labels) == ids_length[-1]
+                    cut_word_labels.extend([-1 for _ in range(pad_num)])
+                
+                if self.config['pos_tag_task']:
+                    if words is None:
+                        words = list(self.segmentor.segment(sentence))
+                    postags = list(self.postagger.postag(words))
+                    assert len(postags) == len(words)
+                    for idx, word in enumerate(words):
+                        if postags[idx].startswith('n'):
+                            postags[idx] = 'n'
+
+                        postag_id = POS_TAG2ID.get(postags[idx])
+                        if postag_id is None:
+                            pos_tag_labels.append(5)
+                        else:
+                            pos_tag_labels.append(postag_id)
+
+                        for _ in word[1:]:
+                            pos_tag_labels.append(0)
+
+                    assert len(pos_tag_labels) == ids_length[-1]
+                    pos_tag_labels.extend([-1 for _ in range(pad_num)])
+
                 ids_list.append(ids)
                 attention_mask.append(mask)
+                labels_list.append(labels)
+                cut_word_labels_list.append(cut_word_labels)
+                pos_tag_labels_list.append(pos_tag_labels)
                 assert len(ids) == len(mask) == len(labels_list[-1])
 
             for idx, span in enumerate(ins['ann_valid_mspans']):
@@ -146,16 +199,20 @@ class DocEETask:
                 labels_list[idx] = labels_list[idx][:MAX_TOKENS_LENGTH]
                 attention_mask[idx] = attention_mask[idx][:MAX_TOKENS_LENGTH]
                 ids_length[idx] = MAX_TOKENS_LENGTH if ids_length[idx] > MAX_TOKENS_LENGTH else ids_length[idx]
-                len(ids) == len(mask) == len(labels_list[-1])
+                assert len(ids) == len(mask) == len(labels_list[-1])
+
+                cut_word_labels_list[idx] = cut_word_labels_list[idx][:MAX_TOKENS_LENGTH]
+                pos_tag_labels_list[idx] = pos_tag_labels_list[idx][:MAX_TOKENS_LENGTH]
 
             ins['ids_list'] = ids_list
             ins['labels_list'] = labels_list
             ins['attention_mask'] = attention_mask
             ins['event_cls'] = event_cls
             ins['ids_length'] = ids_length
-
             lengths.extend(ids_length)
-            #ins['cw_labels_list'] = cw_labels_list
+
+            ins['cw_labels_list'] = cut_word_labels_list
+            ins['pos_tag_labels_list'] = pos_tag_labels_list
             pbar.update()
         random.shuffle(dataset)
 
@@ -529,12 +586,12 @@ default_task_config = {
     'random_seed': 666,
     'eval_ner_json_file': 'eval-ner-%d.json',
 
-    'epoch': 50,
+    'epoch': 10,
     'train_doc_batch_size': 2,
     'eval_doc_batch_size': 2,
     'test_doc_batch_size': 2,
     'accum_batch_size': 64,
-    'not_accum_optim_epoch': 1,
+    'not_accum_optim_epoch': 30,
 
     'use_schedule_sampling': True,
     'min_teacher_prob': 0.1,
@@ -601,8 +658,11 @@ default_task_config = {
     'debug_data_num': None,
     'debug_data_id_test': None,
     'ltp_path': 'ltp_model',
-    'cut_word_task': True,
+
+    'cut_word_task': False,
     'pos_tag_task': True,
+    'POS_TAG_LIST': POS_TAG_LIST,
+    'POS_TAG2ID': POS_TAG2ID,
 
 
     'validate_doc_file': 'validate_doc.pkl',
@@ -612,7 +672,7 @@ default_task_config = {
 }
 
 if __name__ == '__main__':
-    torch.cuda.set_device(1)
+    torch.cuda.set_device(0)
     task_config = default_task_config
     for k, v in task_config.items():
         if not isinstance(v, (int, str, float)):

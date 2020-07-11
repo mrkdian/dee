@@ -722,6 +722,9 @@ default_task_config = {
     'debug_data_id_test': None,
     'ltp_path': 'ltp_model',
     'cut_word_task': False,
+    'pos_tag_task': False,
+
+
     'validate_doc_file': 'validate_doc.pkl',
     'test_doc_file': 'test_doc.pkl',
 
