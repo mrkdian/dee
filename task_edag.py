@@ -36,16 +36,21 @@ class DocEETask:
             raise Exception('Not support other basic encoder')
         self.latest_epoch = 0
 
-        if self.config['cut_word_task'] or self.config['pos_tag_task']:
+        if self.config['cut_word_task'] or self.config['pos_tag_task'] or self.config['parser_task']:
             cws_model_path = os.path.join(self.config['ltp_path'], 'cws.model')
             segmentor = Segmentor()
             segmentor.load(cws_model_path)
             self.segmentor = segmentor
-        if self.config['pos_tag_task']:
+        if self.config['pos_tag_task'] or self.config['parser_task']:
             pos_model_path = os.path.join(self.config['ltp_path'], 'pos.model')
             postagger = Postagger()
             postagger.load(pos_model_path)
             self.postagger = postagger
+        if self.config['parser_task']:
+            parser_model_path = os.path.join(self.config['ltp_path'], 'parser.model')
+            parser = Parser()
+            parser.load(parser_model_path)
+            self.parser = parser
 
 
     def load_data(self):
@@ -107,6 +112,7 @@ class DocEETask:
             labels_list = []
             cut_word_labels_list = []
             pos_tag_labels_list = []
+            parser_labels_list = []
 
             sentences = ins['sentences'][:MAX_SENT_NUM]
             ins['merge_sentences'] = sentences
@@ -116,6 +122,7 @@ class DocEETask:
                 labels = []
                 cut_word_labels = []
                 pos_tag_labels = []
+                parser_labels = []
 
                 if TEXT_NORM:
                     sentence_norm = Traditional2Simplified(strQ2B(sentence)).lower()
@@ -147,6 +154,7 @@ class DocEETask:
                     assert len(cut_word_labels) == ids_length[-1]
                     cut_word_labels.extend([-1 for _ in range(pad_num)])
                 
+                postags = None
                 if self.config['pos_tag_task']:
                     if words is None:
                         words = list(self.segmentor.segment(sentence))
@@ -167,12 +175,30 @@ class DocEETask:
 
                     assert len(pos_tag_labels) == ids_length[-1]
                     pos_tag_labels.extend([-1 for _ in range(pad_num)])
+                
+                if self.config['parser_task']:
+                    if words is None:
+                        words = list(self.segmentor.segment(sentence))
+                    if postags is None:
+                        postags = list(self.postagger.postag(words))
+                    arcs = list(self.parser.parse(words, postags))
+                    for idx, word in enumerate(words):
+                        arc_head = len(''.join(words[:arcs[idx].head - 1]))
+                        if arcs[idx].head == 0 or arc_head >= MAX_TOKENS_LENGTH:
+                            parser_labels.extend([-1 for _ in word])
+                            continue
+                        parser_labels.append(arc_head)
+                        for _ in word[1:]:
+                            parser_labels.append(-1)
+                    assert len(parser_labels) == ids_length[-1]
+                    parser_labels.extend([-1 for _ in range(pad_num)])
 
                 ids_list.append(ids)
                 attention_mask.append(mask)
                 labels_list.append(labels)
                 cut_word_labels_list.append(cut_word_labels)
                 pos_tag_labels_list.append(pos_tag_labels)
+                parser_labels_list.append(parser_labels)
                 assert len(ids) == len(mask) == len(labels_list[-1])
 
             for idx, span in enumerate(ins['ann_valid_mspans']):
@@ -203,6 +229,7 @@ class DocEETask:
 
                 cut_word_labels_list[idx] = cut_word_labels_list[idx][:MAX_TOKENS_LENGTH]
                 pos_tag_labels_list[idx] = pos_tag_labels_list[idx][:MAX_TOKENS_LENGTH]
+                parser_labels_list[idx] = parser_labels_list[idx][:MAX_TOKENS_LENGTH]
 
             ins['ids_list'] = ids_list
             ins['labels_list'] = labels_list
@@ -213,6 +240,7 @@ class DocEETask:
 
             ins['cw_labels_list'] = cut_word_labels_list
             ins['pos_tag_labels_list'] = pos_tag_labels_list
+            ins['parser_labels_list'] = parser_labels_list
             pbar.update()
         random.shuffle(dataset)
 
@@ -453,6 +481,8 @@ class DocEETask:
 
         total_p = 0 if total_tp == 0 else total_tp / (total_tp + total_fp)
         total_r = 0 if total_tp == 0 else total_tp / (total_tp + total_fn)
+        ner_res['precision'] = total_p
+        ner_res['recall'] = total_r
         ner_res['micro_f1'] = 0 if total_p + total_r == 0 else (2 * total_p * total_r) / (total_p + total_r)
         ner_res['macro_f1'] = total_f1 / (len(NER_LABEL_LIST) - 1)
         return ner_res
@@ -660,9 +690,10 @@ default_task_config = {
     'ltp_path': 'ltp_model',
 
     'cut_word_task': False,
-    'pos_tag_task': True,
+    'pos_tag_task': False,
     'POS_TAG_LIST': POS_TAG_LIST,
     'POS_TAG2ID': POS_TAG2ID,
+    'parser_task': True,
 
 
     'validate_doc_file': 'validate_doc.pkl',
@@ -672,7 +703,7 @@ default_task_config = {
 }
 
 if __name__ == '__main__':
-    torch.cuda.set_device(0)
+    torch.cuda.set_device(1)
     task_config = default_task_config
     for k, v in task_config.items():
         if not isinstance(v, (int, str, float)):

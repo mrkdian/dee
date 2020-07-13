@@ -294,6 +294,10 @@ class DocEE(nn.Module):
         
         if config['pos_tag_task']:
             self.pos_tag_labeler = nn.Linear(hidden_size, len(config['POS_TAG_LIST']))
+        
+        if config['parser_task']:
+            self.parser_query = nn.Linear(hidden_size, hidden_size // 2)
+            self.parser_key = nn.Linear(hidden_size, hidden_size // 2)
 
         self.event_tables = []
         for event_type in self.config['EVENT_TYPES']:
@@ -836,6 +840,7 @@ class DocEE(nn.Module):
 
         cw_label = []
         pos_label = []
+        parser_label = []
 
         input_ids_by_sent_idx = []
         attention_mask_by_sent_idx = []
@@ -848,6 +853,8 @@ class DocEE(nn.Module):
                     cw_label.extend(ins['cw_labels_list'])
                 if self.config['pos_tag_task']:
                     pos_label.extend(ins['pos_tag_labels_list'])
+                if self.config['parser_task']:
+                    parser_label.extend(ins['parser_labels_list'])
 
 
             input_ids.extend(ins['ids_list'])
@@ -1023,12 +1030,22 @@ class DocEE(nn.Module):
                 cw_label = torch.tensor(cw_label, device=device, dtype=torch.long)
                 cw_score = self.cw_labeler(batch_emb)
                 cw_loss = F.cross_entropy(cw_score.view(-1, 2), cw_label.view(-1), ignore_index=-1)
-                ner_loss += cw_loss
+                ner_loss += 0.3 * cw_loss
             if self.config['pos_tag_task']:
                 pos_label = torch.tensor(pos_label, device=device, dtype=torch.long)
                 pos_score = self.pos_tag_labeler(batch_emb)
                 pos_loss = F.cross_entropy(pos_score.view(-1, pos_score.shape[-1]), pos_label.view(-1), ignore_index=-1)
-                ner_loss += pos_loss
+                ner_loss += 0.3 * pos_loss
+            if self.config['parser_task']:
+                parser_label = torch.tensor(parser_label, device=device, dtype=torch.long)
+                parser_q = self.parser_query(batch_emb)
+                parser_k = self.parser_key(batch_emb)
+                parser_score = torch.bmm(parser_q, parser_k.transpose(-1, -2))
+                parser_score = parser_score.masked_fill(
+                    (1 - attention_mask.to(dtype=torch.uint8)).unsqueeze(1).expand(-1, attention_mask.shape[-1], -1), -1e9)
+                parser_loss = F.cross_entropy(parser_score.view(-1, parser_score.shape[-1]), parser_label.view(-1), ignore_index=-1)
+                ner_loss += 0.1 * parser_loss
+                #print(1)
 
         if use_gold:
             ner_pred = ner_label
