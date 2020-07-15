@@ -1030,12 +1030,12 @@ class DocEE(nn.Module):
                 cw_label = torch.tensor(cw_label, device=device, dtype=torch.long)
                 cw_score = self.cw_labeler(batch_emb)
                 cw_loss = F.cross_entropy(cw_score.view(-1, 2), cw_label.view(-1), ignore_index=-1)
-                ner_loss += 0.3 * cw_loss
+                ner_loss += 0.05 * cw_loss # single 0.3, total 0.05
             if self.config['pos_tag_task']:
                 pos_label = torch.tensor(pos_label, device=device, dtype=torch.long)
                 pos_score = self.pos_tag_labeler(batch_emb)
                 pos_loss = F.cross_entropy(pos_score.view(-1, pos_score.shape[-1]), pos_label.view(-1), ignore_index=-1)
-                ner_loss += 0.3 * pos_loss
+                ner_loss += 0.05 * pos_loss # single 0.3, total 0.05
             if self.config['parser_task']:
                 parser_label = torch.tensor(parser_label, device=device, dtype=torch.long)
                 parser_q = self.parser_query(batch_emb)
@@ -1044,8 +1044,7 @@ class DocEE(nn.Module):
                 parser_score = parser_score.masked_fill(
                     (1 - attention_mask.to(dtype=torch.uint8)).unsqueeze(1).expand(-1, attention_mask.shape[-1], -1), -1e9)
                 parser_loss = F.cross_entropy(parser_score.view(-1, parser_score.shape[-1]), parser_label.view(-1), ignore_index=-1)
-                ner_loss += 0.1 * parser_loss
-                #print(1)
+                ner_loss += 0.01 * parser_loss # single 0.1 total 0.01
 
         if use_gold:
             ner_pred = ner_label

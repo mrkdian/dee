@@ -642,9 +642,9 @@ default_task_config = {
     'text_norm': True,
     
     'use_bert': True,
-    'bert_model_name': 'hfl/rbt3', # ['hfl/rbt3', 'bert-base-chinese']
-    'bert_dir': 'rbt3', # ['rbt3', 'bert_base_chinese']
-    'num_bert_layer': None,
+    'bert_model_name': 'bert-base-chinese', # ['hfl/rbt3', 'bert-base-chinese']
+    'bert_dir': 'bert_base_chinese', # ['rbt3', 'bert_base_chinese']
+    'num_bert_layer': 4,
     'bert_add_cls_sep': False,
 
     'use_xlnet': False,
@@ -689,8 +689,8 @@ default_task_config = {
     'debug_data_id_test': None,
     'ltp_path': 'ltp_model',
 
-    'cut_word_task': False,
-    'pos_tag_task': False,
+    'cut_word_task': True,
+    'pos_tag_task': True,
     'POS_TAG_LIST': POS_TAG_LIST,
     'POS_TAG2ID': POS_TAG2ID,
     'parser_task': True,
@@ -703,7 +703,7 @@ default_task_config = {
 }
 
 if __name__ == '__main__':
-    torch.cuda.set_device(1)
+    torch.cuda.set_device(0)
     task_config = default_task_config
     for k, v in task_config.items():
         if not isinstance(v, (int, str, float)):
