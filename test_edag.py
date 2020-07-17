@@ -10,15 +10,12 @@ import torch
 ner_eval_target = [
     ('output_edag/save_eval_rbt3_parser', 'edag', 'red'),
     ('output_edag/save_eval_rbt3_pos', 'edag', 'red'),
-    ('output_edag/save_eval_rbt3_cw', 'edag', 'red'),
-    ('output_edag/save_eval_rbt3', 'graph', 'blue'),
-    #('output_edag/save_eval', 'test', 'black')
+    ('output_edag/save_eval_bert&lstm', 'graph', 'blue'),
+    #('output_edag/save_eval', 'test', 'black'),
 ]
 ner_res = {}
 handles = []
 for eval_dir_path, eval_label, color in ner_eval_target:
-    model_dir_path = eval_dir_path.replace('eval', 'model')
-    model_dir = os.listdir(model_dir_path)
     save_eval_dir = os.listdir(eval_dir_path)
     res = []
     micro_f1 = []
@@ -30,9 +27,13 @@ for eval_dir_path, eval_label, color in ner_eval_target:
             f1 = eval_json['micro_f1']
             res.append((epoch, f1))
     
-    
-    model_path = model_dir[0]
-    store_dict = torch.load(os.path.join(model_dir_path, model_path), map_location='cpu')
+    store_dict = { 'setting': None }
+
+    model_dir_path = eval_dir_path.replace('eval', 'model')
+    if os.path.exists(model_dir_path):
+        model_dir = os.listdir(model_dir_path)
+        model_path = model_dir[0]
+        store_dict = torch.load(os.path.join(model_dir_path, model_path), map_location='cpu')
 
     res = sorted(res, key=lambda x: x[0], reverse=True)
     epochs = list(map(lambda x: x[0], res))

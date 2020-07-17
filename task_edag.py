@@ -32,6 +32,8 @@ class DocEETask:
             self.tokenizer = BertTokenizer.from_pretrained(self.config['bert_model_name'], cache_dir=config['bert_dir'])
         elif self.config['use_xlnet']:
             self.tokenizer = XLNetTokenizer.from_pretrained('hfl/chinese-xlnet-base', cache_dir=config['xlnet_dir'])
+        elif self.config['use_transformer']:
+            self.tokenizer = BertTokenizer.from_pretrained('bert-base-chinese', cache_dir=config['bert_dir'])
         else:
             raise Exception('Not support other basic encoder')
         self.latest_epoch = 0
@@ -99,7 +101,7 @@ class DocEETask:
         pbar = tqdm(total=len(dataset))
         lengths = []
         for _, ins in enumerate(dataset):
-            if self.config['use_bert']:
+            if self.config['use_bert'] or self.config['use_transformer']:
                 UNK_ID = self.tokenizer.vocab['[UNK]']
                 PAD_ID = self.tokenizer.vocab['[PAD]']
             elif self.config['use_xlnet']:
@@ -274,6 +276,12 @@ class DocEETask:
             xlnet_config.mem_len = self.config['xlnet_mem_len']
             xlnet = XLNetModel.from_pretrained('hfl/chinese-xlnet-base', cache_dir=self.config['xlnet_dir'], config=xlnet_config)
             basic_encoder = xlnet
+        elif self.config['use_transformer']:
+            bert_config = BertConfig.from_pretrained('bert-base-chinese', cache_dir=self.config['bert_dir'])
+            if self.config['num_transformer_layer'] is not None:
+                bert_config.num_hidden_layers = self.config['num_transformer_layer']
+            transf = BertModel(bert_config)
+            basic_encoder = transf
         else:
             raise Exception('Not support other basic encoder')
 
@@ -616,7 +624,7 @@ default_task_config = {
     'random_seed': 666,
     'eval_ner_json_file': 'eval-ner-%d.json',
 
-    'epoch': 10,
+    'epoch': 20,
     'train_doc_batch_size': 2,
     'eval_doc_batch_size': 2,
     'test_doc_batch_size': 2,
@@ -641,6 +649,10 @@ default_task_config = {
     'dev_ratio': 0.05,
     'text_norm': True,
     
+    ######## basic encoder ###########
+    'use_transformer': False,
+    'num_transformer_layer': 4,
+
     'use_bert': True,
     'bert_model_name': 'bert-base-chinese', # ['hfl/rbt3', 'bert-base-chinese']
     'bert_dir': 'bert_base_chinese', # ['rbt3', 'bert_base_chinese']
@@ -653,6 +665,7 @@ default_task_config = {
     'xlnet_dir': 'xlnet_chinese',
     'num_xlnet_layer': 4,
     'xlnet_mem_len': 1024,
+    ##################################
 
     'hidden_size': 768,
     'dropout': 0.1,
@@ -669,8 +682,8 @@ default_task_config = {
     'use_token_role': True,
     'use_pos_emb': False,
     'use_doc_enc': False, # consider
-    'use_rnn_enc': None, # ['LSTM', 'GRU', None]
-    'rnn_bidirection': False,
+    'use_rnn_enc': 'LSTM', # ['LSTM', 'GRU', None]
+    'rnn_bidirection': True,
 
     'num_tf_layer': 4,
     'ff_size': 1024,
@@ -689,11 +702,11 @@ default_task_config = {
     'debug_data_id_test': None,
     'ltp_path': 'ltp_model',
 
-    'cut_word_task': True,
+    'cut_word_task': False,
     'pos_tag_task': True,
     'POS_TAG_LIST': POS_TAG_LIST,
     'POS_TAG2ID': POS_TAG2ID,
-    'parser_task': True,
+    'parser_task': False,
 
 
     'validate_doc_file': 'validate_doc.pkl',
