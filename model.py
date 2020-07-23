@@ -263,6 +263,23 @@ class DocEE(nn.Module):
                 nn.ReLU(),
                 nn.Linear(hidden_size, hidden_size)
             )
+        elif self.config['use_rnn_basic_encoder']:
+            basic_rnn_bidirection = self.config['basic_rnn_bidirection']
+            basic_num_rnn_layer = self.config['basic_num_rnn_layer']
+            rnn_hidden_size = hidden_size
+            if basic_rnn_bidirection:
+                rnn_hidden_size = rnn_hidden_size // 2
+            if config['use_rnn_basic_encoder'] == 'LSTM':
+                self.basic_encoder = nn.LSTM(
+                    input_size=hidden_size, hidden_size=rnn_hidden_size, num_layers=basic_num_rnn_layer, dropout=dropout,
+                    batch_first=True, bidirectional=basic_rnn_bidirection
+                )
+            elif config['use_rnn_basic_encoder'] == 'GRU':
+                self.basic_encoder = nn.GRU(
+                    input_size=hidden_size, hidden_size=rnn_hidden_size, num_layers=basic_num_rnn_layer, dropout=dropout,
+                    batch_first=True, bidirectional=basic_rnn_bidirection,
+                )
+            self.basic_rnn_input_emb = nn.Embedding(len(self.tokenizer.vocab), hidden_size)
 
         if config['use_crf']:
             self.crf = CRF(num_tags=len(self.config['NER_LABEL_LIST']), batch_first=True)
@@ -830,7 +847,8 @@ class DocEE(nn.Module):
         
     
     def do_ner(self, batch_train, train_flag=True, use_gold=False):
-        device = self.basic_encoder.device
+        device = torch.device('cuda') if self.config['cuda'] else torch.device('cpu')
+        #device = self.basic_encoder.device
         input_ids = []
         ner_label = []
         attention_mask = []
@@ -876,7 +894,35 @@ class DocEE(nn.Module):
             self.eval_obj['ner_gt'].append(ins['labels_list'])
         attention_mask = torch.tensor(attention_mask, device=device, dtype=torch.float)
         
-        if self.config['use_bert'] or self.config['use_transformer']:
+        if self.config['use_rnn_basic_encoder']:
+            input_ids = torch.tensor(input_ids, device=device, dtype=torch.long)
+            batch_emb = self.basic_rnn_input_emb(input_ids)
+            rnn_batch_emb = []
+            rnn_batch_input = []
+
+            for i in range(len(doc_beg_list) - 1):
+                doc_beg, doc_end = doc_beg_list[i], doc_beg_list[i + 1]
+                ids_emb = batch_emb[doc_beg: doc_end]
+                rnn_mem = None
+                rnn_input = []
+                for sent_idx in range(ids_emb.shape[0]):
+                    length = ids_length[doc_beg: doc_end][sent_idx]
+                    rnn_input.append(ids_emb[sent_idx, :length])
+                rnn_batch_input.append(torch.cat(rnn_input))
+            pack_seq = nn.utils.rnn.pack_sequence(rnn_batch_input, enforce_sorted=False)
+            pack_output = self.basic_encoder(pack_seq)[0]
+            rnn_batch_emb = nn.utils.rnn.pad_packed_sequence(pack_output, batch_first=True)[0]
+
+            batch_emb = []
+            for i in range(len(doc_beg_list) - 1):
+                doc_beg, doc_end = doc_beg_list[i], doc_beg_list[i + 1]
+                base = 0
+                for sent_idx in range(doc_end - doc_beg):
+                    length = ids_length[doc_beg: doc_end][sent_idx]
+                    batch_emb.append(rnn_batch_emb[i, base: base + length])
+                    base += length
+            batch_emb = pad_sequence_left(batch_emb, batch_first=True, padding_len=self.config['max_tokens_length'])
+        elif self.config['use_bert'] or self.config['use_transformer']:
             input_ids = torch.tensor(input_ids, device=device, dtype=torch.long)
             if self.config['sent_batch_size'] is not None:
                 sent_batch_size = self.config['sent_batch_size']
@@ -1057,12 +1103,12 @@ class DocEE(nn.Module):
                 cw_label = torch.tensor(cw_label, device=device, dtype=torch.long)
                 cw_score = self.cw_labeler(batch_emb)
                 cw_loss = F.cross_entropy(cw_score.view(-1, 2), cw_label.view(-1), ignore_index=-1)
-                ner_loss += 0.3 * cw_loss # single 0.3, total 0.05
+                ner_loss += 0.05 * cw_loss # single 0.3, total 0.05
             if self.config['pos_tag_task']:
                 pos_label = torch.tensor(pos_label, device=device, dtype=torch.long)
                 pos_score = self.pos_tag_labeler(batch_emb)
                 pos_loss = F.cross_entropy(pos_score.view(-1, pos_score.shape[-1]), pos_label.view(-1), ignore_index=-1)
-                ner_loss += 0.3 * pos_loss # single 0.3, total 0.05
+                ner_loss += 0.05 * pos_loss # single 0.3, total 0.05
             if self.config['parser_task']:
                 parser_label = torch.tensor(parser_label, device=device, dtype=torch.long)
                 parser_q = self.parser_query(batch_emb)

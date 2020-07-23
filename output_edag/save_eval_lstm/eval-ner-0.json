@@ -1,0 +1,198 @@
+{
+    "EquityHolder": {
+        "tp": 6453,
+        "fp": 1529,
+        "fn": 3160,
+        "f1": 0.7335038363171354,
+        "precision": 0.8084439989977449,
+        "recall": 0.6712784770623115
+    },
+    "FrozeShares": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 298,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "LegalInstitution": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 502,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "TotalHoldingShares": {
+        "tp": 1455,
+        "fp": 1720,
+        "fn": 704,
+        "f1": 0.5455568053993252,
+        "precision": 0.4582677165354331,
+        "recall": 0.6739231125521075
+    },
+    "TotalHoldingRatio": {
+        "tp": 91,
+        "fp": 797,
+        "fn": 1634,
+        "f1": 0.06965174129353234,
+        "precision": 0.10247747747747747,
+        "recall": 0.0527536231884058
+    },
+    "StartDate": {
+        "tp": 3542,
+        "fp": 3837,
+        "fn": 1489,
+        "f1": 0.5708299758259467,
+        "precision": 0.4800108415774495,
+        "recall": 0.7040349831047505
+    },
+    "EndDate": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 1510,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "UnfrozeDate": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 18,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "CompanyName": {
+        "tp": 8128,
+        "fp": 804,
+        "fn": 1954,
+        "f1": 0.8549489849584515,
+        "precision": 0.9099865651589789,
+        "recall": 0.8061892481650467
+    },
+    "HighestTradingPrice": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 1624,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "LowestTradingPrice": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 1040,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "RepurchasedShares": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 1567,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "ClosingDate": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 1648,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "RepurchaseAmount": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 1426,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "TradedShares": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 1134,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "LaterHoldingShares": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 421,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "AveragePrice": {
+        "tp": 45,
+        "fp": 1179,
+        "fn": 164,
+        "f1": 0.06280530355896721,
+        "precision": 0.03676470588235294,
+        "recall": 0.215311004784689
+    },
+    "Pledger": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "PledgedShares": {
+        "tp": 1848,
+        "fp": 1985,
+        "fn": 1023,
+        "f1": 0.5513126491646778,
+        "precision": 0.4821288807722411,
+        "recall": 0.6436781609195402
+    },
+    "Pledgee": {
+        "tp": 1592,
+        "fp": 301,
+        "fn": 540,
+        "f1": 0.791055900621118,
+        "precision": 0.8409931325937665,
+        "recall": 0.7467166979362101
+    },
+    "TotalPledgedShares": {
+        "tp": 775,
+        "fp": 643,
+        "fn": 595,
+        "f1": 0.5559540889526543,
+        "precision": 0.5465444287729196,
+        "recall": 0.5656934306569343
+    },
+    "ReleasedDate": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 761,
+        "f1": 0,
+        "precision": 0,
+        "recall": 0
+    },
+    "StockCode": {
+        "tp": 3129,
+        "fp": 125,
+        "fn": 119,
+        "f1": 0.9624730852045525,
+        "precision": 0.9615857406269207,
+        "recall": 0.9633620689655172
+    },
+    "StockAbbr": {
+        "tp": 2737,
+        "fp": 280,
+        "fn": 2358,
+        "f1": 0.6748027613412229,
+        "precision": 0.9071925754060325,
+        "recall": 0.5371933267909715
+    },
+    "precision": 0.6929875566926387,
+    "recall": 0.5370016581356788,
+    "micro_f1": 0.6051036261537993,
+    "macro_f1": 0.26553729719323266
+}

@@ -32,7 +32,7 @@ class DocEETask:
             self.tokenizer = BertTokenizer.from_pretrained(self.config['bert_model_name'], cache_dir=config['bert_dir'])
         elif self.config['use_xlnet']:
             self.tokenizer = XLNetTokenizer.from_pretrained('hfl/chinese-xlnet-base', cache_dir=config['xlnet_dir'])
-        elif self.config['use_transformer']:
+        elif self.config['use_transformer'] or self.config['use_rnn_basic_encoder']:
             self.tokenizer = BertTokenizer.from_pretrained('bert-base-chinese', cache_dir=config['bert_dir'])
         else:
             raise Exception('Not support other basic encoder')
@@ -101,7 +101,7 @@ class DocEETask:
         pbar = tqdm(total=len(dataset))
         lengths = []
         for _, ins in enumerate(dataset):
-            if self.config['use_bert'] or self.config['use_transformer']:
+            if self.config['use_bert'] or self.config['use_transformer'] or self.config['use_rnn_basic_encoder']:
                 UNK_ID = self.tokenizer.vocab['[UNK]']
                 PAD_ID = self.tokenizer.vocab['[PAD]']
             elif self.config['use_xlnet']:
@@ -210,6 +210,8 @@ class DocEETask:
                 if label == 'OtherType':
                     continue
                 for sent_idx, beg, end in dranges:
+                    if sent_idx >= MAX_SENT_NUM:
+                        continue
                     labels_list[sent_idx][beg] = NER_LABEL2ID['B-' + label]
                     for k in range(beg + 1, end):
                         labels_list[sent_idx][k] = NER_LABEL2ID['I-' + label]
@@ -227,7 +229,7 @@ class DocEETask:
                 labels_list[idx] = labels_list[idx][:MAX_TOKENS_LENGTH]
                 attention_mask[idx] = attention_mask[idx][:MAX_TOKENS_LENGTH]
                 ids_length[idx] = MAX_TOKENS_LENGTH if ids_length[idx] > MAX_TOKENS_LENGTH else ids_length[idx]
-                assert len(ids) == len(mask) == len(labels_list[-1])
+                #assert len(ids_list[idx]) == len(mask) == len(labels_list[-1])
 
                 cut_word_labels_list[idx] = cut_word_labels_list[idx][:MAX_TOKENS_LENGTH]
                 pos_tag_labels_list[idx] = pos_tag_labels_list[idx][:MAX_TOKENS_LENGTH]
@@ -250,6 +252,9 @@ class DocEETask:
         pass
 
     def preprocess(self):
+        if self.config['remerge_sentence_tokens_length']:
+            self.remerge_sentence()
+
         #self.config['max_sent_num'] = 30
         self.preprocess_train(self.train)
         os.sys.stdout.flush()
@@ -261,6 +266,44 @@ class DocEETask:
         # self.preprocess_train(self.dev)
         # os.sys.stdout.flush()
         print('preprocess finish')
+    
+    def remerge_sentence(self):
+        remerge_length = self.config['remerge_sentence_tokens_length']
+        sent_idx2merge_sent_idx = {}
+        for ins in self.train + self.test:
+            sentences = ins['sentences']
+            span2dranges = ins['ann_mspan2dranges']
+            merge_sentences = []
+            merge_span2dranges = {}
+            cur_sentence = ''
+            for sent_idx, sentence in enumerate(sentences):
+                if len(sentence + cur_sentence) < remerge_length:
+                    cur_beg = len(cur_sentence)
+                    cur_sentence += sentence
+                else:
+                    merge_sentences.append(cur_sentence)
+                    cur_beg = 0
+                    cur_sentence = sentence
+
+                for span, dranges in span2dranges.items():
+                    for span_sent_idx, beg, end in dranges:
+                        if span_sent_idx == sent_idx:
+                            merge_dranges = merge_span2dranges.get(span)
+                            if merge_dranges is not None:
+                                merge_dranges.append((len(merge_sentences), cur_beg + beg, cur_beg + end))
+                            else:
+                                merge_span2dranges[span] = [(len(merge_sentences), cur_beg + beg, cur_beg + end)]
+
+            if len(cur_sentence) > 0:
+                merge_sentences.append(cur_sentence)
+
+            for span, dranges in merge_span2dranges.items():
+                assert len(dranges) == len(span2dranges[span])
+                for sent_idx, beg, end in dranges:
+                    assert merge_sentences[sent_idx][beg: end] == span
+            
+            ins['sentences'] = merge_sentences
+            ins['ann_mspan2dranges'] = merge_span2dranges
     
     def init_model(self):
         basic_encoder = None
@@ -282,6 +325,8 @@ class DocEETask:
                 bert_config.num_hidden_layers = self.config['num_transformer_layer']
             transf = BertModel(bert_config)
             basic_encoder = transf
+        elif self.config['use_rnn_basic_encoder']:
+            pass
         else:
             raise Exception('Not support other basic encoder')
 
@@ -624,7 +669,7 @@ default_task_config = {
     'random_seed': 666,
     'eval_ner_json_file': 'eval-ner-%d.json',
 
-    'epoch': 20,
+    'epoch': 10,
     'train_doc_batch_size': 2,
     'eval_doc_batch_size': 2,
     'test_doc_batch_size': 2,
@@ -642,14 +687,19 @@ default_task_config = {
     'resume_model': True,
     'only_ner': True,
 
-    'max_tokens_length': 128,
-    'max_sent_num': 64,
+    'max_tokens_length': 500, # 128 for no merge, 500 for merge
+    'max_sent_num': 5, # 64 for no merge, 5 for merge
     'sent_batch_size': 5,
+    'remerge_sentence_tokens_length': 500,
 
     'dev_ratio': 0.05,
     'text_norm': True,
     
     ######## basic encoder ###########
+    'use_rnn_basic_encoder': None, #['LSTM', 'GRU', None]
+    'basic_rnn_bidirection': True,
+    'basic_num_rnn_layer': 4,
+
     'use_transformer': False,
     'num_transformer_layer': 4,
 
@@ -678,11 +728,12 @@ default_task_config = {
     'ner_label_sentence_length': 500,
 
     'cuda': True,
+
     'use_crf': False,
     'use_token_role': True,
     'use_pos_emb': False,
     'use_doc_enc': False, # consider
-    'use_rnn_enc': 'LSTM', # ['LSTM', 'GRU', None]
+    'use_rnn_enc': None, # ['LSTM', 'GRU', None]
     'rnn_bidirection': True,
 
     'num_tf_layer': 4,
@@ -703,7 +754,7 @@ default_task_config = {
     'ltp_path': 'ltp_model',
 
     'cut_word_task': False,
-    'pos_tag_task': True,
+    'pos_tag_task': False,
     'POS_TAG_LIST': POS_TAG_LIST,
     'POS_TAG2ID': POS_TAG2ID,
     'parser_task': False,
