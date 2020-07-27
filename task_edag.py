@@ -259,7 +259,7 @@ class DocEETask:
         self.preprocess_train(self.train)
         os.sys.stdout.flush()
 
-        #self.config['max_sent_num'] = 30
+        self.config['max_sent_num'] = 64
         self.preprocess_train(self.test)
         os.sys.stdout.flush()
 
@@ -669,12 +669,12 @@ default_task_config = {
     'random_seed': 666,
     'eval_ner_json_file': 'eval-ner-%d.json',
 
-    'epoch': 10,
+    'epoch': 90,
     'train_doc_batch_size': 2,
     'eval_doc_batch_size': 2,
     'test_doc_batch_size': 2,
     'accum_batch_size': 64,
-    'not_accum_optim_epoch': 30,
+    'not_accum_optim_epoch': 1,
 
     'use_schedule_sampling': True,
     'min_teacher_prob': 0.1,
@@ -685,12 +685,12 @@ default_task_config = {
     'skip_eval': False,
     'save_model': True,
     'resume_model': True,
-    'only_ner': True,
+    'only_ner': False,
 
-    'max_tokens_length': 500, # 128 for no merge, 500 for merge
-    'max_sent_num': 5, # 64 for no merge, 5 for merge
+    'max_tokens_length': 128, # 128 for no merge, 500 for merge
+    'max_sent_num': 64, # 64 for no merge, 5 for merge
     'sent_batch_size': 5,
-    'remerge_sentence_tokens_length': 500,
+    'remerge_sentence_tokens_length': False, # usually 500
 
     'dev_ratio': 0.05,
     'text_norm': True,
@@ -732,7 +732,7 @@ default_task_config = {
     'use_crf': False,
     'use_token_role': True,
     'use_pos_emb': False,
-    'use_doc_enc': False, # consider
+    'use_doc_enc': True, # consider
     'use_rnn_enc': None, # ['LSTM', 'GRU', None]
     'rnn_bidirection': True,
 
@@ -753,17 +753,17 @@ default_task_config = {
     'debug_data_id_test': None,
     'ltp_path': 'ltp_model',
 
-    'cut_word_task': False,
-    'pos_tag_task': False,
+    'cut_word_task': True,
+    'pos_tag_task': True,
     'POS_TAG_LIST': POS_TAG_LIST,
     'POS_TAG2ID': POS_TAG2ID,
-    'parser_task': False,
+    'parser_task': True,
 
 
     'validate_doc_file': 'validate_doc.pkl',
     'test_doc_file': 'test_doc.pkl',
 
-    'multilabel_loss': 'multilabel_crossentropy' #['binary', 'multilabel_crossentropy']
+    'multilabel_loss': 'binary' #['binary', 'multilabel_crossentropy']
 }
 
 if __name__ == '__main__':
