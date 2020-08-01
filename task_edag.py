@@ -15,6 +15,8 @@ import pickle
 import time
 from model import DocEE
 from pyltp import Segmentor, Postagger, Parser
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning)
 
 POS_TAG_LIST = ['n', 'v', 'wp', 'm', 'other', 'noword']
 POS_TAG2ID = { 'noword': 0, 'n': 1, 'v': 2, 'wp': 3, 'm': 4, 'other': 5 }
@@ -246,6 +248,7 @@ class DocEETask:
             ins['pos_tag_labels_list'] = pos_tag_labels_list
             ins['parser_labels_list'] = parser_labels_list
             pbar.update()
+        pbar.close()
         random.shuffle(dataset)
 
     def preprocess_test(self):
