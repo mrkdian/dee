@@ -1115,7 +1115,7 @@ class DocEE(nn.Module):
                 parser_k = self.parser_key(batch_emb)
                 parser_score = torch.bmm(parser_q, parser_k.transpose(-1, -2))
                 parser_score = parser_score.masked_fill(
-                    (1 - attention_mask.to(dtype=torch.uint8)).unsqueeze(1).expand(-1, attention_mask.shape[-1], -1), -1e9)
+                    (1 - attention_mask.to(dtype=torch.uint8)).type(torch.bool).unsqueeze(1).expand(-1, attention_mask.shape[-1], -1), -1e9)
                 parser_loss = F.cross_entropy(parser_score.view(-1, parser_score.shape[-1]), parser_label.view(-1), ignore_index=-1)
                 ner_loss += 0.01 * parser_loss # single 0.1 total 0.01, (xlnet single 0.005, total 0.001)
 
