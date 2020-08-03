@@ -725,6 +725,7 @@ default_task_config = {
 
     'ee_method': 'EDAG', # [GreedyDec, EDAG]
     'use_edag_graph': False, # useless bullshit
+    'use_path_mem': False,
     'trainable_pos_emb': False,
     'span_drange_fuse': 'add', # ['add', 'concat']
     'ner_label_count_limit': None,

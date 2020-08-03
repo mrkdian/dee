@@ -544,6 +544,7 @@ class DocEE(nn.Module):
 
         cur_mem_list = []
         use_edag_graph = self.config['use_edag_graph']
+        use_path_mem = self.config['use_path_mem']
         if use_edag_graph:
             cur_span_graph_score = torch.ones(len(span_emb), dtype=torch.float, device=device)
             cur_mem_list.append(span_emb)
@@ -603,7 +604,8 @@ class DocEE(nn.Module):
                         else:
                             cur_span_graph_score += 1
                         cur_mem_list[0] = span_emb * (cur_span_graph_score.view(-1, 1) / (field_idx + 2))
-                    cur_mem_list.append(span_mem)
+                    if use_path_mem:
+                        cur_mem_list.append(span_mem)
                     prev_path2mem[cur_path] = cur_mem_list
                     # cur_mem = torch.cat([prev_mem, span_mem], dim=0)
                     # prev_path2mem[cur_path] = cur_mem
@@ -647,6 +649,7 @@ class DocEE(nn.Module):
         else: # positive case
             cur_mem_list = []
             use_edag_graph = self.config['use_edag_graph']
+            use_path_mem = self.config['use_path_mem']
             if use_edag_graph:
                 cur_span_graph_score = torch.ones(len(span_emb), dtype=torch.float, device=device)
                 cur_mem_list.append(span_emb)
@@ -702,7 +705,8 @@ class DocEE(nn.Module):
                             else:
                                 cur_span_graph_score += 1
                             cur_mem_list[0] = span_emb * (cur_span_graph_score.view(-1, 1) / (field_idx + 2))
-                        cur_mem_list.append(span_mem)
+                        if use_path_mem:
+                            cur_mem_list.append(span_mem)
                         prev_path2mem[cur_path] = cur_mem_list
                         #cur_mem = torch.cat([prev_mem, span_mem], dim=0)
                         #prev_path2mem[cur_path] = cur_mem

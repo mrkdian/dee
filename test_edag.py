@@ -13,7 +13,7 @@ for output_dir in os.listdir('output_edag'):
         eval_target.append((os.path.join('output_edag', output_dir), 'test', 'black'))
 eval_target.sort(key=lambda x: x[0])
 max_epoch = 60
-min_epoch = 30
+min_epoch = 0
 res = {}
 handles = []
 for eval_dir_path, eval_label, color in eval_target:
