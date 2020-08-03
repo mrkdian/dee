@@ -1,0 +1,408 @@
+[
+    [
+        {
+            "EventType": "EquityFreeze",
+            "MacroPrecision": 0.43562881252407654,
+            "MacroRecall": 0.4844210171153814,
+            "MacroF1": 0.45763575387501887,
+            "MicroPrecision": 0.5128205128205128,
+            "MicroRecall": 0.5683060109289617,
+            "MicroF1": 0.539139450492483,
+            "TP": 1040,
+            "FP": 988,
+            "FN": 790
+        },
+        [
+            {
+                "RoleType": "EquityHolder",
+                "Precision": 0.6069364161849711,
+                "Recall": 0.6363636363636364,
+                "F1": 0.621301775147929,
+                "TP": 210,
+                "FP": 136,
+                "FN": 120
+            },
+            {
+                "RoleType": "FrozeShares",
+                "Precision": 0.47411444141689374,
+                "Recall": 0.5272727272727272,
+                "F1": 0.4992826398852224,
+                "TP": 174,
+                "FP": 193,
+                "FN": 156
+            },
+            {
+                "RoleType": "LegalInstitution",
+                "Precision": 0.5297297297297298,
+                "Recall": 0.593939393939394,
+                "F1": 0.56,
+                "TP": 196,
+                "FP": 174,
+                "FN": 134
+            },
+            {
+                "RoleType": "TotalHoldingShares",
+                "Precision": 0.5013404825737265,
+                "Recall": 0.6382252559726962,
+                "F1": 0.5615615615615616,
+                "TP": 187,
+                "FP": 186,
+                "FN": 106
+            },
+            {
+                "RoleType": "TotalHoldingRatio",
+                "Precision": 0.5967213114754099,
+                "Recall": 0.6765799256505576,
+                "F1": 0.6341463414634145,
+                "TP": 182,
+                "FP": 123,
+                "FN": 87
+            },
+            {
+                "RoleType": "StartDate",
+                "Precision": 0.3811881188118812,
+                "Recall": 0.34684684684684686,
+                "F1": 0.36320754716981135,
+                "TP": 77,
+                "FP": 125,
+                "FN": 145
+            },
+            {
+                "RoleType": "EndDate",
+                "Precision": 0.275,
+                "Recall": 0.2894736842105263,
+                "F1": 0.28205128205128205,
+                "TP": 11,
+                "FP": 29,
+                "FN": 27
+            },
+            {
+                "RoleType": "UnfrozeDate",
+                "Precision": 0.12,
+                "Recall": 0.16666666666666666,
+                "F1": 0.13953488372093023,
+                "TP": 3,
+                "FP": 22,
+                "FN": 15
+            }
+        ]
+    ],
+    [
+        {
+            "EventType": "EquityRepurchase",
+            "MacroPrecision": 0.7365338595999749,
+            "MacroRecall": 0.8117599746187678,
+            "MacroF1": 0.7715162032836981,
+            "MicroPrecision": 0.7383834439672003,
+            "MicroRecall": 0.8140335772707705,
+            "MicroF1": 0.7743652743652745,
+            "TP": 5673,
+            "FP": 2010,
+            "FN": 1296
+        },
+        [
+            {
+                "RoleType": "CompanyName",
+                "Precision": 0.7967145790554415,
+                "Recall": 0.9432739059967585,
+                "F1": 0.8638218923933211,
+                "TP": 1164,
+                "FP": 297,
+                "FN": 70
+            },
+            {
+                "RoleType": "HighestTradingPrice",
+                "Precision": 0.6883954154727794,
+                "Recall": 0.790296052631579,
+                "F1": 0.7358346094946402,
+                "TP": 961,
+                "FP": 435,
+                "FN": 255
+            },
+            {
+                "RoleType": "LowestTradingPrice",
+                "Precision": 0.7434154630416313,
+                "Recall": 0.7178014766201805,
+                "F1": 0.7303839732888147,
+                "TP": 875,
+                "FP": 302,
+                "FN": 344
+            },
+            {
+                "RoleType": "RepurchasedShares",
+                "Precision": 0.755192878338279,
+                "Recall": 0.8351107465135357,
+                "F1": 0.7931437475652513,
+                "TP": 1018,
+                "FP": 330,
+                "FN": 201
+            },
+            {
+                "RoleType": "ClosingDate",
+                "Precision": 0.6286472148541115,
+                "Recall": 0.7124248496993988,
+                "F1": 0.6679192108971349,
+                "TP": 711,
+                "FP": 420,
+                "FN": 287
+            },
+            {
+                "RoleType": "RepurchaseAmount",
+                "Precision": 0.8068376068376069,
+                "Recall": 0.8716528162511542,
+                "F1": 0.837993786063027,
+                "TP": 944,
+                "FP": 226,
+                "FN": 139
+            }
+        ]
+    ],
+    [
+        {
+            "EventType": "EquityUnderweight",
+            "MacroPrecision": 0.5581991895547344,
+            "MacroRecall": 0.5095046947741597,
+            "MacroF1": 0.5266669138609393,
+            "MicroPrecision": 0.5930941096817874,
+            "MicroRecall": 0.5318761384335154,
+            "MicroF1": 0.5608194622279129,
+            "TP": 876,
+            "FP": 601,
+            "FN": 771
+        },
+        [
+            {
+                "RoleType": "EquityHolder",
+                "Precision": 0.6177156177156177,
+                "Recall": 0.693717277486911,
+                "F1": 0.6535141800246609,
+                "TP": 265,
+                "FP": 164,
+                "FN": 117
+            },
+            {
+                "RoleType": "TradedShares",
+                "Precision": 0.6185567010309279,
+                "Recall": 0.4712041884816754,
+                "F1": 0.5349182763744428,
+                "TP": 180,
+                "FP": 111,
+                "FN": 202
+            },
+            {
+                "RoleType": "StartDate",
+                "Precision": 0.5636363636363636,
+                "Recall": 0.5095890410958904,
+                "F1": 0.535251798561151,
+                "TP": 186,
+                "FP": 144,
+                "FN": 179
+            },
+            {
+                "RoleType": "EndDate",
+                "Precision": 0.6105919003115264,
+                "Recall": 0.519893899204244,
+                "F1": 0.5616045845272206,
+                "TP": 196,
+                "FP": 125,
+                "FN": 181
+            },
+            {
+                "RoleType": "LaterHoldingShares",
+                "Precision": 0.4067796610169492,
+                "Recall": 0.2376237623762376,
+                "F1": 0.3,
+                "TP": 24,
+                "FP": 35,
+                "FN": 77
+            },
+            {
+                "RoleType": "AveragePrice",
+                "Precision": 0.5319148936170213,
+                "Recall": 0.625,
+                "F1": 0.5747126436781609,
+                "TP": 25,
+                "FP": 22,
+                "FN": 15
+            }
+        ]
+    ],
+    [
+        {
+            "EventType": "EquityOverweight",
+            "MacroPrecision": 0.6484720000732729,
+            "MacroRecall": 0.4969157335073208,
+            "MacroF1": 0.5541916169654498,
+            "MicroPrecision": 0.6571888412017167,
+            "MicroRecall": 0.5293863439930856,
+            "MicroF1": 0.5864049784585926,
+            "TP": 1225,
+            "FP": 639,
+            "FN": 1089
+        },
+        [
+            {
+                "RoleType": "EquityHolder",
+                "Precision": 0.6588235294117647,
+                "Recall": 0.6666666666666666,
+                "F1": 0.6627218934911243,
+                "TP": 336,
+                "FP": 174,
+                "FN": 168
+            },
+            {
+                "RoleType": "TradedShares",
+                "Precision": 0.6659090909090909,
+                "Recall": 0.5813492063492064,
+                "F1": 0.6207627118644068,
+                "TP": 293,
+                "FP": 147,
+                "FN": 211
+            },
+            {
+                "RoleType": "StartDate",
+                "Precision": 0.6657608695652174,
+                "Recall": 0.5201698513800425,
+                "F1": 0.5840286054827175,
+                "TP": 245,
+                "FP": 123,
+                "FN": 226
+            },
+            {
+                "RoleType": "EndDate",
+                "Precision": 0.6586021505376344,
+                "Recall": 0.5257510729613734,
+                "F1": 0.58472553699284,
+                "TP": 245,
+                "FP": 127,
+                "FN": 221
+            },
+            {
+                "RoleType": "LaterHoldingShares",
+                "Precision": 0.45161290322580644,
+                "Recall": 0.17142857142857143,
+                "F1": 0.2485207100591716,
+                "TP": 42,
+                "FP": 51,
+                "FN": 203
+            },
+            {
+                "RoleType": "AveragePrice",
+                "Precision": 0.7901234567901234,
+                "Recall": 0.5161290322580645,
+                "F1": 0.624390243902439,
+                "TP": 64,
+                "FP": 17,
+                "FN": 60
+            }
+        ]
+    ],
+    [
+        {
+            "EventType": "EquityPledge",
+            "MacroPrecision": 0.6032648201068195,
+            "MacroRecall": 0.5817179277644277,
+            "MacroF1": 0.5759174060410828,
+            "MicroPrecision": 0.6190680039138943,
+            "MicroRecall": 0.6070764617691154,
+            "MicroF1": 0.6130135949374754,
+            "TP": 10123,
+            "FP": 6229,
+            "FN": 6552
+        },
+        [
+            {
+                "RoleType": "Pledger",
+                "Precision": 0.6727138097001111,
+                "Recall": 0.7903436276642019,
+                "F1": 0.7268,
+                "TP": 1817,
+                "FP": 884,
+                "FN": 482
+            },
+            {
+                "RoleType": "PledgedShares",
+                "Precision": 0.46640625,
+                "Recall": 0.5193562418442801,
+                "F1": 0.4914591479728339,
+                "TP": 1194,
+                "FP": 1366,
+                "FN": 1105
+            },
+            {
+                "RoleType": "Pledgee",
+                "Precision": 0.6674463937621833,
+                "Recall": 0.7446715963462375,
+                "F1": 0.7039473684210527,
+                "TP": 1712,
+                "FP": 853,
+                "FN": 587
+            },
+            {
+                "RoleType": "TotalHoldingShares",
+                "Precision": 0.6734355573974306,
+                "Recall": 0.747814081914404,
+                "F1": 0.7086785870039249,
+                "TP": 1625,
+                "FP": 788,
+                "FN": 548
+            },
+            {
+                "RoleType": "TotalHoldingRatio",
+                "Precision": 0.6869070208728653,
+                "Recall": 0.7529901196047842,
+                "F1": 0.7184321508310593,
+                "TP": 1448,
+                "FP": 660,
+                "FN": 475
+            },
+            {
+                "RoleType": "TotalPledgedShares",
+                "Precision": 0.6419676214196762,
+                "Recall": 0.5597176981541803,
+                "F1": 0.5980278422273781,
+                "TP": 1031,
+                "FP": 575,
+                "FN": 811
+            },
+            {
+                "RoleType": "StartDate",
+                "Precision": 0.6342913776015857,
+                "Recall": 0.3126526624328285,
+                "F1": 0.41884816753926696,
+                "TP": 640,
+                "FP": 369,
+                "FN": 1407
+            },
+            {
+                "RoleType": "EndDate",
+                "Precision": 0.5510204081632653,
+                "Recall": 0.22375690607734808,
+                "F1": 0.3182711198428291,
+                "TP": 243,
+                "FP": 198,
+                "FN": 843
+            },
+            {
+                "RoleType": "ReleasedDate",
+                "Precision": 0.4351949420442571,
+                "Recall": 0.5841584158415841,
+                "F1": 0.49879227053140096,
+                "TP": 413,
+                "FP": 536,
+                "FN": 294
+            }
+        ]
+    ],
+    {
+        "MacroPrecision": 0.5964197363717757,
+        "MacroRecall": 0.5768638695560114,
+        "MacroF1": 0.5771855788052378,
+        "MicroPrecision": 0.6440280233981771,
+        "MicroRecall": 0.6433497536945813,
+        "MicroF1": 0.6436887098693044,
+        "TP": 18937,
+        "FP": 10467,
+        "FN": 10498
+    }
+]

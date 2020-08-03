@@ -12,7 +12,8 @@ for output_dir in os.listdir('output_edag'):
     if output_dir.startswith('save_eval'):
         eval_target.append((os.path.join('output_edag', output_dir), 'test', 'black'))
 eval_target.sort(key=lambda x: x[0])
-max_epoch = 15
+max_epoch = 60
+min_epoch = 30
 res = {}
 handles = []
 for eval_dir_path, eval_label, color in eval_target:
@@ -22,14 +23,14 @@ for eval_dir_path, eval_label, color in eval_target:
     for eval_file in save_eval_dir:
         if eval_file.startswith('eval-ner') and eval_file.endswith('json'):
             epoch = int(eval_file.split('-')[-1].split('.')[0])
-            if epoch >= max_epoch:
+            if epoch >= max_epoch or epoch < min_epoch:
                 continue
             eval_json = json.load(open(os.path.join(eval_dir_path, eval_file), mode='r', encoding='utf-8'))
             f1 = eval_json['micro_f1']
             _ner_res.append((epoch, f1))
         elif eval_file.startswith('eval') and eval_file.endswith('json'):
             epoch = int(eval_file.split('-')[-1].split('.')[0])
-            if epoch >= max_epoch:
+            if epoch >= max_epoch or epoch < min_epoch:
                 continue
             eval_json = json.load(open(os.path.join(eval_dir_path, eval_file), mode='r', encoding='utf-8'))
             f1 = eval_json[-1]['MicroF1']
@@ -49,6 +50,7 @@ for eval_dir_path, eval_label, color in eval_target:
     micro_f1 = list(map(lambda x: x[1], _ee_res))
     res[eval_dir_path] = {
         'ner_res': _ner_res, 'ee_res': _ee_res, 'epochs': epochs, 'micro_f1': micro_f1, 'max_micro_f1': max(micro_f1),
+        'mean_micro_f1': np.mean(micro_f1),
         'setting': store_dict['setting']
     }
 
