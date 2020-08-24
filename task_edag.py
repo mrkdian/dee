@@ -15,6 +15,7 @@ import pickle
 import time
 from model import DocEE
 from pyltp import Segmentor, Postagger, Parser
+from collections import Counter
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 
@@ -236,6 +237,22 @@ class DocEETask:
                 cut_word_labels_list[idx] = cut_word_labels_list[idx][:MAX_TOKENS_LENGTH]
                 pos_tag_labels_list[idx] = pos_tag_labels_list[idx][:MAX_TOKENS_LENGTH]
                 parser_labels_list[idx] = parser_labels_list[idx][:MAX_TOKENS_LENGTH]
+
+            #resolve key sent
+            key_sent_label = []
+            for event_type in EVENT_TYPES:
+                key_sent_label.append([0] * len(sentences))
+            for _, event_type, event in ins['recguid_eventname_eventdict_list']:
+                sent_idx_list = []
+                for event_role, span in event.items():
+                    if event_role == 'event_type' or span is None:
+                        continue
+                    span_dranges = ins['ann_mspan2dranges'][span]
+                    for drange in span_dranges:
+                        sent_idx_list.append(drange[0])
+                key_sent_idx = Counter(sent_idx_list).most_common()[0][0]
+                key_sent_label[EVENT_TYPE2ID[event_type]][key_sent_idx] = 1
+            ins['key_sent_label'] = key_sent_label
 
             ins['ids_list'] = ids_list
             ins['labels_list'] = labels_list
@@ -723,7 +740,7 @@ default_task_config = {
     'hidden_size': 768,
     'dropout': 0.1,
 
-    'ee_method': 'EDAG', # [GreedyDec, EDAG]
+    'ee_method': 'DCFEE', # [GreedyDec, EDAG, DCFEE]
     'use_edag_graph': False, # useless bullshit
     'use_path_mem': False,
     'trainable_pos_emb': False,

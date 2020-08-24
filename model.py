@@ -281,6 +281,11 @@ class DocEE(nn.Module):
                 )
             self.basic_rnn_input_emb = nn.Embedding(len(self.tokenizer.vocab), hidden_size)
 
+        if config['ee_method'] == 'DCFEE':
+            self.key_sent_cls = nn.ModuleList([
+                nn.Linear(hidden_size, 2) for _ in self.config['EVENT_TYPES']
+            ])
+
         if config['use_crf']:
             self.crf = CRF(num_tags=len(self.config['NER_LABEL_LIST']), batch_first=True)
 
@@ -429,8 +434,69 @@ class DocEE(nn.Module):
             )
             total_loss = ner_loss + decode_loss
             return total_loss, decode_res
+        elif ee_method == 'DCFEE':
+            decode_loss, decode_res = self.key_sent_dec(doc_sent_emb, doc_ner_pred, batch_train, train_flag)
+            total_loss = ner_loss + decode_loss
+            return total_loss, decode_res
         else:
             raise Exception('Not support event method: ' + ee_method)
+
+    def key_sent_dec(self, doc_sent_emb, doc_ner_pred, batch_train, train_flag=True):
+        doc_decode_res = []
+        event_cls_loss = 0
+        for sent_emb, ner_pred, ins in zip(doc_sent_emb, doc_ner_pred, batch_train):
+            key_sent_score = []
+            for sent_cls in self.key_sent_cls:
+                 key_sent_score.append(sent_cls(sent_emb))
+            
+            if train_flag:
+                key_sent_score = torch.stack(key_sent_score)
+                key_sent_label = torch.tensor(ins['key_sent_label'], device=key_sent_score.device)
+                event_cls_loss += F.cross_entropy(key_sent_score.view(-1, key_sent_score.shape[-1]), key_sent_label.view(-1))
+            else:
+                ids2drange = collate_label(ner_pred, ins['attention_mask'], ins['ids_list'])
+                EVENT_TYPES = self.config['EVENT_TYPES']
+                EVENT_FIELDS = self.config['EVENT_FIELDS']
+                NER_LABEL_LIST = self.config['NER_LABEL_LIST']
+                label2drange = {}
+                for ids, dranges in ids2drange.items():
+                    for drange, label_idx in dranges:
+                        label = NER_LABEL_LIST[label_idx]
+                        #assert label.startswith('B-')
+                        label = label[2:]
+                        if label not in label2drange:
+                            label2drange[label] = []
+                        label2drange[label].append(drange)
+
+                decode_res = []
+                for event_idx, event_type in enumerate(EVENT_TYPES):
+                    key_sent_pred = torch.argmax(key_sent_score[event_idx], dim=-1).tolist()
+                    ee_res = []
+                    fields = EVENT_FIELDS[event_type][0]
+                    for sent_idx, sent_pred in enumerate(key_sent_pred):
+                        if sent_pred == 0:
+                            field_res = []
+                            for field in fields:
+                                if field not in label2drange:
+                                    field_res.append(None)
+                                    continue
+
+                                closest_sent_idx = None
+                                closest_drange = None
+                                for drange in label2drange[field]:
+                                    if closest_sent_idx is None or abs(closest_sent_idx - sent_idx) > abs(drange[0] - sent_idx):
+                                        closest_drange = drange
+                                        closest_sent_idx = drange[0]
+                                field_res.append(closest_drange)
+                            ee_res.append(field_res)
+                    if len(ee_res) == 0:
+                        decode_res.append(None)
+                    else:
+                        decode_res.append(ee_res)
+                doc_decode_res.append(decode_res)
+
+        event_cls_loss /= len(doc_sent_emb) #mean for batch
+        return event_cls_loss, doc_decode_res
 
     def edag_dec(self, doc_span_drange_list, doc_span_emb, doc_sent_emb, doc_edag_info, batch_train,\
         train_flag=True, use_gold=True, doc_span2span_info=None):

@@ -13,7 +13,7 @@ for output_dir in os.listdir('output_edag'):
         eval_target.append((os.path.join('output_edag', output_dir), 'test', 'black'))
 eval_target.sort(key=lambda x: x[0])
 max_epoch = 60
-min_epoch = 0
+min_epoch = 30
 res = {}
 handles = []
 for eval_dir_path, eval_label, color in eval_target:
@@ -58,6 +58,8 @@ for eval_dir_path, eval_label, color in eval_target:
     handles.append(handle)
 f1_res = list(map(lambda x: (x[0], x[1]['max_micro_f1']), res.items()))
 f1_res.sort(key=lambda x: x[1])
+f1_res_mean = list(map(lambda x: (x[0], x[1]['mean_micro_f1']), res.items()))
+f1_res_mean.sort(key=lambda x: x[1])
 for model_name, score in f1_res:
     print(model_name, score)
 
