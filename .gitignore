@@ -1,5 +1,6 @@
 ltp_model
 bert_base_chinese
 edag_data
+xlnet_chinese
 __pycache__
 .vscode

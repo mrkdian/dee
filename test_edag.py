@@ -48,6 +48,8 @@ for eval_dir_path, eval_label, color in eval_target:
     _ee_res = sorted(_ee_res, key=lambda x: x[0], reverse=True)
     epochs = list(map(lambda x: x[0], _ee_res))
     micro_f1 = list(map(lambda x: x[1], _ee_res))
+    if len(epochs) == 0:
+        continue
     res[eval_dir_path] = {
         'ner_res': _ner_res, 'ee_res': _ee_res, 'epochs': epochs, 'micro_f1': micro_f1, 'max_micro_f1': max(micro_f1),
         'mean_micro_f1': np.mean(micro_f1),
@@ -65,19 +67,19 @@ for model_name, score in f1_res:
 
 ############################## eval ner
 ner_eval_target = [
-    ('output_edag/save_eval_transformer_parser', 'edag', 'red'),
-    ('output_edag/save_eval_transformer_cw', 'edag', 'red'),
-    ('output_edag/save_eval_transformer', 'graph', 'blue'),
-    ('output_edag/save_eval_transformer_pos', 'test', 'black'),
-    ('output_edag/save_eval_transformer_total', 'test', 'black'),
-    ('output_edag/save_eval_bert&lstm', 'test', 'black'),
+    ('output_edag_ner/save_eval_transformer_parser', 'edag', 'red'),
+    ('output_edag_ner/save_eval_transformer_cw', 'edag', 'red'),
+    ('output_edag_ner/save_eval_transformer', 'graph', 'blue'),
+    ('output_edag_ner/save_eval_transformer_pos', 'test', 'black'),
+    ('output_edag_ner/save_eval_transformer_total', 'test', 'black'),
+    ('output_edag_ner/save_eval_bert&lstm', 'test', 'black'),
     #('output_edag/save_eval_transformer_total', 'test', 'black'),
 ]
 
 ner_eval_target = []
 for output_dir in os.listdir('output_edag_ner'):
     if output_dir.startswith('save_eval'):
-        ner_eval_target.append((os.path.join('output_edag', output_dir), 'test', 'black'))
+        ner_eval_target.append((os.path.join('output_edag_ner', output_dir), 'test', 'black'))
 ner_eval_target.sort(key=lambda x: x[0])
 max_epoch = 20
 ner_res = {}

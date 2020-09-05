@@ -474,7 +474,7 @@ class DocEE(nn.Module):
                     ee_res = []
                     fields = EVENT_FIELDS[event_type][0]
                     for sent_idx, sent_pred in enumerate(key_sent_pred):
-                        if sent_pred == 0:
+                        if sent_pred == 1:
                             field_res = []
                             for field in fields:
                                 if field not in label2drange:

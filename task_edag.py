@@ -251,7 +251,8 @@ class DocEETask:
                     for drange in span_dranges:
                         sent_idx_list.append(drange[0])
                 key_sent_idx = Counter(sent_idx_list).most_common()[0][0]
-                key_sent_label[EVENT_TYPE2ID[event_type]][key_sent_idx] = 1
+                if key_sent_idx < len(key_sent_label):
+                    key_sent_label[EVENT_TYPE2ID[event_type]][key_sent_idx] = 1
             ins['key_sent_label'] = key_sent_label
 
             ins['ids_list'] = ids_list
@@ -689,7 +690,7 @@ default_task_config = {
     'random_seed': 666,
     'eval_ner_json_file': 'eval-ner-%d.json',
 
-    'epoch': 90,
+    'epoch': 60,
     'train_doc_batch_size': 2,
     'eval_doc_batch_size': 2,
     'test_doc_batch_size': 2,
@@ -707,10 +708,10 @@ default_task_config = {
     'resume_model': True,
     'only_ner': False,
 
-    'max_tokens_length': 128, # 128 for no merge, 500 for merge
-    'max_sent_num': 64, # 64 for no merge, 5 for merge
+    'max_tokens_length': 500, # 128 for no merge, 500 for merge
+    'max_sent_num': 5, # 64 for no merge, 5 for merge
     'sent_batch_size': 5,
-    'remerge_sentence_tokens_length': False, # usually 500
+    'remerge_sentence_tokens_length': 500, # usually 500
 
     'dev_ratio': 0.05,
     'text_norm': True,
@@ -723,13 +724,13 @@ default_task_config = {
     'use_transformer': False,
     'num_transformer_layer': 4,
 
-    'use_bert': True,
+    'use_bert': False,
     'bert_model_name': 'bert-base-chinese', # ['hfl/rbt3', 'bert-base-chinese']
     'bert_dir': 'bert_base_chinese', # ['rbt3', 'bert_base_chinese']
     'num_bert_layer': 4,
     'bert_add_cls_sep': False,
 
-    'use_xlnet': False,
+    'use_xlnet': True,
     'xlnet_doc_bidirection': False,
     'xlnet_doc_reverse': False,
     'xlnet_dir': 'xlnet_chinese',
@@ -740,15 +741,15 @@ default_task_config = {
     'hidden_size': 768,
     'dropout': 0.1,
 
-    'ee_method': 'DCFEE', # [GreedyDec, EDAG, DCFEE]
-    'use_edag_graph': False, # useless bullshit
-    'use_path_mem': False,
+    'ee_method': 'EDAG', # [GreedyDec, EDAG, DCFEE]
+    'use_edag_graph': True, # useless bullshit
+    'use_path_mem': True,
     'trainable_pos_emb': False,
     'span_drange_fuse': 'add', # ['add', 'concat']
     'ner_label_count_limit': None,
     'ner_label_sentence_length': 500,
 
-    'cuda': True,
+    'cuda': False,
 
     'use_crf': False,
     'use_token_role': True,
